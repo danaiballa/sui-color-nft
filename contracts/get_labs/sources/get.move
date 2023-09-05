@@ -63,13 +63,6 @@ module get_labs::get{
     id: UID,
   }
 
-  // wrapped Get object
-  struct WrappedGet has key, store {
-    id: UID,
-    owner: address,
-    get: Get,
-  }
-
   // --- Events ---
   // TODO: add a ColorChange event
 
