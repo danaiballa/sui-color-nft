@@ -63,6 +63,11 @@ module get_labs::get{
     id: UID,
   }
 
+  // TODO: WrappedGet for ColorChanger 
+  // (so that a user can add more than one Color for upgrade at the same time)
+
+  // TODO: event for ColorChanger, when a user puts a Get for upgrade
+
   // --- Events ---
   // TODO: add a ColorChange event
 
@@ -115,6 +120,7 @@ module get_labs::get{
   /// Admin-only function, mints and returns a Get object
   /// Can mint arbitrary colors
   public fun admin_mint(_: &AdminCap, color: String, ctx: &mut TxContext): Get {
+    // TODO: protect color options
     Get {
       id: object::new(ctx),
       color,
