@@ -16,7 +16,7 @@ module get_labs::get{
 
   const PROFITS_ADDRESS: address = @0x10;
   const PRICE_MINT_SELECTED: u64 = 10_000_000;
-  const PRICE_MINT_RANDOM: u64 = 5_000_000;
+  const PRICE_MINT_ARBITRARY: u64 = 5_000_000;
 
   const EInvalidColor: u64 = 0;
   const EInvalidCoinValue: u64 = 1;
@@ -45,7 +45,7 @@ module get_labs::get{
     profits_address: address,
     available_colors: vector<String>,
     price_mint_selected: u64,
-    price_mint_random: u64,
+    price_mint_arbitrary: u64,
   }
 
   // will store Gets pending for claim from whitelisted addresses
@@ -101,7 +101,7 @@ module get_labs::get{
       profits_address: PROFITS_ADDRESS,
       available_colors,
       price_mint_selected: PRICE_MINT_SELECTED,
-      price_mint_random: PRICE_MINT_RANDOM,
+      price_mint_arbitrary: PRICE_MINT_ARBITRARY,
     };
 
     let admin_cap = AdminCap {id: object::new(ctx)};
@@ -166,12 +166,12 @@ module get_labs::get{
     config.price_mint_selected = new_price_mint_selected;
   }
 
-  public fun admin_edit_price_mint_random(
+  public fun admin_edit_price_mint_arbitrary(
     _: &AdminCap,
-    new_price_mint_random: u64,
+    new_price_mint_arbitrary: u64,
     config: &mut Config,
   ) {
-    config.price_mint_random = new_price_mint_random;
+    config.price_mint_arbitrary = new_price_mint_arbitrary;
   }
 
   public fun admin_edit_profits_address(
@@ -225,12 +225,12 @@ module get_labs::get{
     
   }
 
-  public fun user_mint_random(coin: Coin<SUI>, config: &Config, clock: &Clock, ctx: &mut TxContext): Get {
+  public fun user_mint_arbitrary(coin: Coin<SUI>, config: &Config, clock: &Clock, ctx: &mut TxContext): Get {
 
-    assert!(coin::value(&coin) == config.price_mint_random, EInvalidCoinValue);
+    assert!(coin::value(&coin) == config.price_mint_arbitrary, EInvalidCoinValue);
 
     let total_colors = vector::length(&config.available_colors);
-    let index = get_random_in_range(total_colors, clock);
+    let index = get_arbitrary_number_in_range(total_colors, clock);
     let color = *vector::borrow(&config.available_colors, index);
 
     transfer::public_transfer(coin, config.profits_address);
@@ -243,14 +243,14 @@ module get_labs::get{
 
   // TODO: make this fast (not requiring Clock)
   // Would be totally predictable though
-  public fun user_fast_mint_random(coin: Coin<SUI>, clock: &Clock, ctx: &mut TxContext): Get {
+  public fun user_fast_mint_arbitrary(coin: Coin<SUI>, clock: &Clock, ctx: &mut TxContext): Get {
 
-    assert!(coin::value(&coin) == PRICE_MINT_RANDOM, EInvalidCoinValue);
+    assert!(coin::value(&coin) == PRICE_MINT_ARBITRARY, EInvalidCoinValue);
 
     let available_colors = get_hardcoded_available_colors();
 
     let total_colors = vector::length(&available_colors);
-    let index = get_random_in_range(total_colors, clock);
+    let index = get_arbitrary_number_in_range(total_colors, clock);
     let color = *vector::borrow(&available_colors, index);
 
     transfer::public_transfer(coin, PROFITS_ADDRESS);
@@ -384,7 +384,7 @@ module get_labs::get{
 
   // returns a number in range [0, n-1]
   // TODO: make this less predictable
-  fun get_random_in_range(n: u64, clock: &Clock): u64{
+  fun get_arbitrary_number_in_range(n: u64, clock: &Clock): u64{
     let current_timestamp = clock::timestamp_ms(clock);
     let number = current_timestamp % n;
     number

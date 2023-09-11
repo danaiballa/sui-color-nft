@@ -71,18 +71,18 @@ module get_labs::test_get{
 
   #[test]
   // if we change default (set in init) colors stored in config, this test should change too
-  fun test_mint_random(){
+  fun test_mint_arbitrary(){
 
     let scenario_val = ts::begin(ADMIN);
     let scenario = &mut scenario_val;
 
     get::init_for_test(ts::ctx(scenario));
 
-    // next transaction by user to mint a Get with random color
+    // next transaction by user to mint a Get with arbitrary color
     ts::next_tx(scenario, USER);
     let clock = clock::create_for_testing(ts::ctx(scenario));
     clock::increment_for_testing(&mut clock, 1_000_000_000);
-    let get = mint_random(scenario, 5_000_000, &clock);
+    let get = mint_arbitrary(scenario, 5_000_000, &clock);
     // make sure that color is color in index 4 -> blue
     assert!(get::color(&get) == string::utf8(b"violet"), EColorNotSetProperly);
     
@@ -96,18 +96,18 @@ module get_labs::test_get{
 
   #[test]
   #[expected_failure(abort_code = EInvalidCoinValue)]
-  fun test_mint_random_invalid_coin(){
+  fun test_mint_arbitrary_invalid_coin(){
 
     let scenario_val = ts::begin(ADMIN);
     let scenario = &mut scenario_val;
 
     get::init_for_test(ts::ctx(scenario));
 
-    // next transaction by user to mint a Get with random color
+    // next transaction by user to mint a Get with arbitrary color
     ts::next_tx(scenario, USER);
     let clock = clock::create_for_testing(ts::ctx(scenario));
     clock::increment_for_testing(&mut clock, 1_000_000_000);
-    let get = mint_random(scenario, 2_000_000, &clock);
+    let get = mint_arbitrary(scenario, 2_000_000, &clock);
     // make sure that color is color in index 4 -> blue
     assert!(get::color(&get) == string::utf8(b"violet"), EColorNotSetProperly);
     
@@ -299,12 +299,12 @@ module get_labs::test_get{
     get
   }
 
-  fun mint_random(scenario: &mut Scenario, coin_value: u64, clock: &Clock): Get {
+  fun mint_arbitrary(scenario: &mut Scenario, coin_value: u64, clock: &Clock): Get {
 
     let config = ts::take_shared<Config>(scenario);
 
     let coin = coin::mint_for_testing<SUI>(coin_value, ts::ctx(scenario));
-    let get = get::user_mint_random(coin, &config, clock, ts::ctx(scenario));
+    let get = get::user_mint_arbitrary(coin, &config, clock, ts::ctx(scenario));
 
     ts::return_shared(config);
 
