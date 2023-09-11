@@ -136,15 +136,19 @@ module get_labs::test_get{
     // next transaction by admin to create an edit ticket for the Get of the user
     ts::next_tx(scenario, ADMIN);
     let admin_cap = ts::take_from_sender<AdminCap>(scenario);
-    let edit_ticket = get::admin_create_edit_ticket(&admin_cap, get_id, string::utf8(b"indigo"), ts::ctx(scenario));
+    let config = ts::take_shared<Config>(scenario);
+
+    let edit_ticket = get::admin_create_edit_ticket(&admin_cap, get_id, string::utf8(b"indigo"), &config, ts::ctx(scenario));
     transfer::public_transfer(edit_ticket, USER);
+
+    ts::return_shared(config);
     ts::return_to_sender(scenario, admin_cap);
 
     // next transaction by user to update their color using the edit ticket
     ts::next_tx(scenario, USER);
     let edit_ticket = ts::take_from_sender<EditTicket>(scenario);
     let get = ts::take_from_sender<Get>(scenario);
-    get::edit_color_with_ticket(&mut get, edit_ticket);
+    get::user_edit_color_with_ticket(&mut get, edit_ticket);
     ts::return_to_sender(scenario, get);
 
     // next transaction by user to make sure color was updated properly
@@ -184,8 +188,12 @@ module get_labs::test_get{
     // next transaction by admin to create an edit ticket for the Get of the user
     ts::next_tx(scenario, ADMIN);
     let admin_cap = ts::take_from_sender<AdminCap>(scenario);
-    let edit_ticket = get::admin_create_edit_ticket(&admin_cap, get_id, string::utf8(b"indigo"), ts::ctx(scenario));
+    let config = ts::take_shared<Config>(scenario);
+
+    let edit_ticket = get::admin_create_edit_ticket(&admin_cap, get_id, string::utf8(b"indigo"), &config, ts::ctx(scenario));
     transfer::public_transfer(edit_ticket, USER);
+
+    ts::return_shared(config);
     ts::return_to_sender(scenario, admin_cap);
 
     // next transaction by user that sends their edit ticket to another user
@@ -198,7 +206,7 @@ module get_labs::test_get{
     ts::next_tx(scenario, other_user);
     let edit_ticket = ts::take_from_sender<EditTicket>(scenario);
     let other_get = ts::take_from_sender<Get>(scenario);
-    get::edit_color_with_ticket(&mut other_get, edit_ticket);
+    get::user_edit_color_with_ticket(&mut other_get, edit_ticket);
     ts::return_to_sender(scenario, other_get);
 
     ts::end(scenario_val);
@@ -248,7 +256,7 @@ module get_labs::test_get{
 
     ts::next_tx(scenario, USER);
     let whitelist = ts::take_shared<Whitelist>(scenario);
-    let get = get::whitelist_claim(&mut whitelist, ts::ctx(scenario));
+    let get = get::user_whitelist_claim(&mut whitelist, ts::ctx(scenario));
     ts::return_shared(whitelist);
     transfer::public_transfer(get, USER);
 
@@ -266,7 +274,7 @@ module get_labs::test_get{
 
     ts::next_tx(scenario, USER);
     let whitelist = ts::take_shared<Whitelist>(scenario);
-    let get = get::whitelist_claim(&mut whitelist, ts::ctx(scenario));
+    let get = get::user_whitelist_claim(&mut whitelist, ts::ctx(scenario));
     ts::return_shared(whitelist);
     transfer::public_transfer(get, USER);
 
@@ -279,34 +287,54 @@ module get_labs::test_get{
   // === helper functions for testing ===
 
   fun mint_selected(scenario: &mut Scenario, coin_value: u64, color: String): Get {
+
     let config = ts::take_shared<Config>(scenario);
+
     let coin = coin::mint_for_testing<SUI>(coin_value, ts::ctx(scenario));
-    let get = get::mint_selected(coin, color, &config, ts::ctx(scenario));
+
+    let get = get::user_mint_selected(coin, color, &config, ts::ctx(scenario));
+
     ts::return_shared(config);
+
     get
   }
 
   fun mint_random(scenario: &mut Scenario, coin_value: u64, clock: &Clock): Get {
+
     let config = ts::take_shared<Config>(scenario);
+
     let coin = coin::mint_for_testing<SUI>(coin_value, ts::ctx(scenario));
-    let get = get::mint_random(coin, &config, clock, ts::ctx(scenario));
+    let get = get::user_mint_random(coin, &config, clock, ts::ctx(scenario));
+
     ts::return_shared(config);
+
     get
   }
 
   fun admin_mint(scenario: &mut Scenario, color: String): Get {
+
     let admin_cap = ts::take_from_address<AdminCap>(scenario, ADMIN);
-    let get = get::admin_mint(&admin_cap, color, ts::ctx(scenario));
+    let config = ts::take_shared<Config>(scenario);
+
+    let get = get::admin_mint(&admin_cap, color, &config, ts::ctx(scenario));
+
     ts::return_to_address(ADMIN, admin_cap);
+    ts::return_shared(config);
+
     get
   }
 
   fun admin_mint_and_whitelist_add(scenario: &mut Scenario, user_address: address){
-    let admin_cap = ts::take_from_address<AdminCap>(scenario, ADMIN);
-    let get = get::admin_mint(&admin_cap, string::utf8(b"red"), ts::ctx(scenario));
+
+    let config = ts::take_shared<Config>(scenario);
     let whitelist = ts::take_shared<Whitelist>(scenario);
+    let admin_cap = ts::take_from_sender<AdminCap>(scenario);
+    
+    let get = get::admin_mint(&admin_cap, string::utf8(b"red"), &config, ts::ctx(scenario));
     get::admin_whitelist_add(&admin_cap, &mut whitelist, get, user_address);
+
+    ts::return_shared(config);
     ts::return_shared(whitelist);
-    ts::return_to_address(ADMIN, admin_cap);
+    ts::return_to_sender(scenario, admin_cap);
   }
 }

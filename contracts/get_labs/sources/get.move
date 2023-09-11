@@ -3,6 +3,7 @@ module get_labs::get{
   use std::string::{Self, String};
   use std::vector;
 
+  use sui::dynamic_field as df;
   use sui::dynamic_object_field as dof;
   use sui::coin::{Self, Coin};
   use sui::clock::{Self, Clock};
@@ -13,13 +14,16 @@ module get_labs::get{
   use sui::tx_context::{Self, TxContext};
   use sui::sui::SUI;
 
-  const ADMIN_ADDRESS: address = @0x10;
+  const PROFITS_ADDRESS: address = @0x10;
+  const PRICE_MINT_SELECTED: u64 = 10_000_000;
+  const PRICE_MINT_RANDOM: u64 = 5_000_000;
 
   const EInvalidColor: u64 = 0;
   const EInvalidCoinValue: u64 = 1;
   const EInvalidId: u64 = 2;
   const EUserAlreadyWhitelisted: u64 = 3;
   const EUserNotWhitelisted: u64 = 4;
+  const EGetIsNotPutForColorChange: u64 = 5;
 
   // OTW for display
   struct GET has drop {}
@@ -39,7 +43,7 @@ module get_labs::get{
   struct Config has key, store {
     id: UID,
     profits_address: address,
-    colors_available: vector<String>,
+    available_colors: vector<String>,
     price_mint_selected: u64,
     price_mint_random: u64,
   }
@@ -65,6 +69,10 @@ module get_labs::get{
 
   // TODO: WrappedGet for ColorChanger 
   // (so that a user can add more than one Color for upgrade at the same time)
+  struct WrappedGet has store {
+    owner: address,
+    get: Get,
+  }
 
   // TODO: event for ColorChanger, when a user puts a Get for upgrade
 
@@ -82,31 +90,29 @@ module get_labs::get{
     let values = vector[string::utf8(b"https://placehold.co/600x600/{color}/{color}")];
     let display = display::new_with_fields<Get>(&publisher, keys, values, ctx);
 
+    // Commit first version of `Display` to apply changes.
+    display::update_version(&mut display);
+
     // initialize Config struct
-    let colors_available = vector[
-      string::utf8(b"red"),
-      string::utf8(b"orange"),
-      string::utf8(b"yellow"),
-      string::utf8(b"green"),
-      string::utf8(b"blue"),
-      string::utf8(b"indigo"),
-      string::utf8(b"violet"),
-    ];
+    let available_colors = get_hardcoded_available_colors();
 
     let config = Config {
       id: object::new(ctx),
-      profits_address: ADMIN_ADDRESS,
-      colors_available,
-      price_mint_selected: 10_000_000,
-      price_mint_random: 5_000_000,
+      profits_address: PROFITS_ADDRESS,
+      available_colors,
+      price_mint_selected: PRICE_MINT_SELECTED,
+      price_mint_random: PRICE_MINT_RANDOM,
     };
 
     let admin_cap = AdminCap {id: object::new(ctx)};
 
     let whitelist = Whitelist { id: object::new(ctx) };
 
+    let color_changer = ColorChanger { id: object::new(ctx) };
+
     transfer::share_object(config);
     transfer::share_object(whitelist);
+    transfer::share_object(color_changer);
 
     let sender = tx_context::sender(ctx);
 
@@ -118,70 +124,114 @@ module get_labs::get{
   // === Admin-only functions ===
 
   /// Admin-only function, mints and returns a Get object
-  /// Can mint arbitrary colors
-  public fun admin_mint(_: &AdminCap, color: String, ctx: &mut TxContext): Get {
-    // TODO: protect color options
-    Get {
-      id: object::new(ctx),
-      color,
-    }
+  public fun admin_mint(_: &AdminCap, color: String, config: &Config, ctx: &mut TxContext): Get {
+
+    mint(color, config.available_colors, ctx)
   }
 
-  public fun admin_create_edit_ticket(_: &AdminCap, get_id: ID, new_color: String, ctx: &mut TxContext): EditTicket {
-    EditTicket {
-      id: object::new(ctx),
-      get_id,
-      new_color
-    }
+  /// No-consensus admin mint
+  public fun admin_fast_mint(_: &AdminCap, color: String, ctx: &mut TxContext): Get {
+
+    let available_colors = get_hardcoded_available_colors();
+
+    mint(color, available_colors, ctx)
   }
 
-  // TODO: function to alter colors
-  // TODO: function to alter prices
-  // TODO: function to alter admin address
-  // TODO: function to create more admin caps
+  public fun admin_create_edit_ticket(_: &AdminCap, get_id: ID, new_color: String, config: &Config, ctx: &mut TxContext): EditTicket {
+
+    create_edit_ticket(get_id, new_color, config.available_colors, ctx)
+
+  }
+
+  public fun admin_fast_create_edit_ticket(_: &AdminCap, get_id: ID, new_color: String, ctx: &mut TxContext): EditTicket {
+
+    let available_colors = get_hardcoded_available_colors();
+
+    create_edit_ticket(get_id, new_color, available_colors, ctx)
+  }
+
+  public fun admin_edit_available_colors(
+    _: &AdminCap,
+    new_available_colors: vector<String>,
+    config: &mut Config,
+  ) {
+    config.available_colors = new_available_colors;
+  }
+
+  public fun admin_edit_price_mint_selected(
+    _: &AdminCap,
+    new_price_mint_selected: u64,
+    config: &mut Config,
+  ) {
+    config.price_mint_selected = new_price_mint_selected;
+  }
+
+  public fun admin_edit_price_mint_random(
+    _: &AdminCap,
+    new_price_mint_random: u64,
+    config: &mut Config,
+  ) {
+    config.price_mint_random = new_price_mint_random;
+  }
+
+  public fun admin_edit_profits_address(
+    _: &AdminCap,
+    new_profits_address: address,
+    config: &mut Config,
+  ) {
+    config.profits_address = new_profits_address;
+  }
+
+  public fun admin_create_extra_admin_cap(
+    _: &AdminCap,
+    ctx: &mut TxContext,
+  ): AdminCap {
+    AdminCap { id: object::new(ctx) }
+  }
 
   public fun admin_whitelist_add(_: &AdminCap, whitelist: &mut Whitelist, get: Get, user_address: address){
     assert!(!dof::exists_<address>(&whitelist.id, user_address), EUserAlreadyWhitelisted);
     dof::add<address, Get>(&mut whitelist.id, user_address, get);
   }
 
+  public fun admin_color_change(_: &AdminCap, color_changer: &mut ColorChanger, config: &Config, get_id: ID, new_color: String) {
+
+    assert!(df::exists_<ID>(&color_changer.id, get_id), EGetIsNotPutForColorChange);
+
+    let wrapped_get = df::remove<ID, WrappedGet>(&mut color_changer.id, get_id);
+
+    let WrappedGet { owner, get } = wrapped_get;
+    
+    assert!(belongs_in_available_colors(config.available_colors, new_color), EInvalidColor);
+    get.color = new_color;
+
+    transfer::transfer(get, owner);
+  }
+
   // === User functions ===
 
-  public fun mint_selected(coin: Coin<SUI>, color: String, config: &Config, ctx: &mut TxContext): Get {
-    // make sure coin value is proper
-    assert!(coin::value(&coin) == config.price_mint_selected, EInvalidCoinValue);
+  public fun user_mint_selected(coin: Coin<SUI>, color: String, config: &Config, ctx: &mut TxContext): Get {
 
-    // check if color is in colors_available field of config
-    // there are no sets in move. 
-    // vec_set is equivalently O(n)
-    // TODO: check if we could do this in O(1)
-    let belongs_in_colors_available = false;
-    let i = 0;
-    let total = vector::length(&config.colors_available);
-    while (i < total) {
-      if (color == *vector::borrow(&config.colors_available, i)){
-        belongs_in_colors_available = true;
-        break
-      };
-      i = i + 1;
-    };
+    mint_selected(coin, color, config.available_colors, config.price_mint_selected, config.profits_address, ctx)
 
-    assert!(belongs_in_colors_available, EInvalidColor);
-
-    transfer::public_transfer(coin, config.profits_address);
-    
-    Get {
-      id: object::new(ctx),
-      color,
-    }
   }
 
-  public fun mint_random(coin: Coin<SUI>, config: &Config, clock: &Clock, ctx: &mut TxContext): Get {
+  public fun user_fast_mint_selected(coin: Coin<SUI>, color: String, ctx: &mut TxContext): Get {
+
+    let available_colors = get_hardcoded_available_colors();
+
+    // TODO: check if we should re-organize the argument order
+    mint_selected(coin, color, available_colors, PRICE_MINT_SELECTED, PROFITS_ADDRESS, ctx)
+    
+  }
+
+  public fun user_mint_random(coin: Coin<SUI>, config: &Config, clock: &Clock, ctx: &mut TxContext): Get {
+
     assert!(coin::value(&coin) == config.price_mint_random, EInvalidCoinValue);
 
-    let total_colors = vector::length(&config.colors_available);
+    let total_colors = vector::length(&config.available_colors);
     let index = get_random_in_range(total_colors, clock);
-    let color = *vector::borrow(&config.colors_available, index);
+    let color = *vector::borrow(&config.available_colors, index);
 
     transfer::public_transfer(coin, config.profits_address);
 
@@ -191,17 +241,46 @@ module get_labs::get{
     }
   }
 
-  public fun edit_color_with_ticket(get: &mut Get, edit_ticket: EditTicket) {
+  // TODO: make this fast (not requiring Clock)
+  // Would be totally predictable though
+  public fun user_fast_mint_random(coin: Coin<SUI>, clock: &Clock, ctx: &mut TxContext): Get {
+
+    assert!(coin::value(&coin) == PRICE_MINT_RANDOM, EInvalidCoinValue);
+
+    let available_colors = get_hardcoded_available_colors();
+
+    let total_colors = vector::length(&available_colors);
+    let index = get_random_in_range(total_colors, clock);
+    let color = *vector::borrow(&available_colors, index);
+
+    transfer::public_transfer(coin, PROFITS_ADDRESS);
+
+    Get {
+      id: object::new(ctx),
+      color,
+    }
+}
+
+  public fun user_edit_color_with_ticket(get: &mut Get, edit_ticket: EditTicket) {
     let EditTicket { id, get_id, new_color } = edit_ticket;
     assert!(get_id == object::uid_to_inner(&get.id), EInvalidId);
     get.color = new_color;
     object::delete(id);
   }
 
-  // TODO: the following function
-  // public fun put_for_color_change(get: Get, color_changer: &mut ColorChanger){}
+  public fun user_put_for_color_change(get: Get, color_changer: &mut ColorChanger, ctx: &mut TxContext){
 
-  public fun whitelist_claim(whitelist: &mut Whitelist, ctx: &mut TxContext): Get {
+    let get_id = object::uid_to_inner(&get.id);
+
+    let wrapped_get = WrappedGet { 
+      owner: tx_context::sender(ctx),
+      get,
+    };
+
+    df::add<ID, WrappedGet>(&mut color_changer.id, get_id, wrapped_get);
+  }
+
+  public fun user_whitelist_claim(whitelist: &mut Whitelist, ctx: &mut TxContext): Get {
     let user_address = tx_context::sender(ctx);
     assert!(dof::exists_<address>(&whitelist.id, user_address), EUserNotWhitelisted);
     let get = dof::remove<address, Get>(&mut whitelist.id, user_address);
@@ -219,6 +298,89 @@ module get_labs::get{
   }
 
   // === Helper functions ===
+
+  // check if color is in available_colors field of config
+  fun belongs_in_available_colors(available_colors: vector<String>, color: String): bool {
+    // there are no sets in move. 
+    // vec_set is equivalently O(n)
+    // TODO: check if we could do this in O(1)
+    let belongs_in_available_colors = false;
+    let i = 0;
+    let total = vector::length(&available_colors);
+    while (i < total) {
+      if (color == *vector::borrow(&available_colors, i)){
+        belongs_in_available_colors = true;
+        break
+      };
+      i = i + 1;
+    };
+
+    belongs_in_available_colors
+  }
+
+  fun get_hardcoded_available_colors(): vector<String> {
+    let available_colors = vector[
+      string::utf8(b"red"),
+      string::utf8(b"orange"),
+      string::utf8(b"yellow"),
+      string::utf8(b"green"),
+      string::utf8(b"blue"),
+      string::utf8(b"indigo"),
+      string::utf8(b"violet"),
+    ];
+
+    available_colors
+  }
+
+  fun mint_selected(
+    coin: Coin<SUI>,
+    color: String, 
+    available_colors: vector<String>, 
+    price_mint_selected: u64,
+    profits_address: address,
+    ctx: &mut TxContext
+    ): Get {
+
+    // make sure coin value is proper
+    assert!(coin::value(&coin) == price_mint_selected, EInvalidCoinValue);
+
+    transfer::public_transfer(coin, profits_address);
+
+    mint(color, available_colors, ctx)
+    
+  }
+
+  fun mint(
+    color: String,
+    available_colors: vector<String>,
+    ctx: &mut TxContext,
+  ): Get {
+
+    assert!(belongs_in_available_colors(available_colors, color), EInvalidColor);
+
+    Get {
+      id: object::new(ctx),
+      color,
+    }
+
+  }
+
+  fun create_edit_ticket(
+    get_id: ID,
+    new_color: String, 
+    available_colors: vector<String>, 
+    ctx: &mut TxContext
+    ): EditTicket {
+
+    assert!(belongs_in_available_colors(available_colors, new_color), EInvalidColor);
+
+    EditTicket {
+      id: object::new(ctx),
+      get_id,
+      new_color
+    }
+      
+  }
 
   // returns a number in range [0, n-1]
   // TODO: make this less predictable
