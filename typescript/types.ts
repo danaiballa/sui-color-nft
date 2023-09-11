@@ -1,10 +1,20 @@
-export type Color = 'red' | 'orange' | 'yellow' | 'green'| 'blue' | 'indigo' | 'violet';
+export type Color =
+  | "red"
+  | "orange"
+  | "yellow"
+  | "green"
+  | "blue"
+  | "indigo"
+  | "violet";
 
-export type airdropData = {
-  recipient: string,
-  getColor: Color,
-}
+export type address = string;
 
-// TODO: have a type "address"?
+export type AirdropData = {
+  recipient: address;
+  getColor: Color;
+};
 
-
+export type WhitelistData = {
+  whitelistedAddress: address;
+  getColor: Color;
+};

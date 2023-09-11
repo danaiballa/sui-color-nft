@@ -3,7 +3,7 @@ import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { getKeyPair, formatAddress } from './helpers';
 
 import { ADMIN_CAP, ADMIN_PRIVATE_KEY, CONFIG, PACKAGE_ID } from './constants';
-import { airdropData } from "./types";
+import { AirdropData } from "./types";
 
 const adminKeypair = getKeyPair(ADMIN_PRIVATE_KEY);
 
@@ -12,7 +12,7 @@ const client = new SuiClient({
 });
 
 async function airdrop(
-  data: airdropData[]
+  data: AirdropData[]
 ): Promise<SuiTransactionBlockResponse> {
 
   let txb = new TransactionBlock();
@@ -55,9 +55,9 @@ async function airdrop(
 // So we airdrop for 50 and flow for more is similar
 async function main(){
 
-  let data: airdropData[] = [];
+  let data: AirdropData[] = [];
 
-  for (let i = 0; i<50; i++){
+  for (let i = 0; i < 50; i++){
     data.push(
       {
         recipient: formatAddress(String(i)),
