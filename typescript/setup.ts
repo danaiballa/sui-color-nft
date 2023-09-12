@@ -7,7 +7,16 @@ export const moduleFunctions: {
   adminMint: `${PACKAGE_ID}::get::admin_mint`,
   adminWhitelistAdd: `${PACKAGE_ID}::get::admin_whitelist_add`,
   userWhitelistClaim: `${PACKAGE_ID}::get::user_whitelist_claim`,
+  userPutForColorChange: `${PACKAGE_ID}::get::user_put_for_color_change`,
+  adminColorChange: `${PACKAGE_ID}::get::admin_color_change`,
 };
+
+export const moduleTypes: {
+  [key: string]: `${string}::${string}::${string}`;
+} = {
+  get: `${PACKAGE_ID}::get::Get`,
+  colorChanger: `${PACKAGE_ID}::get::ColorChanger`
+}
 
 export const testnetClient = new SuiClient({
   url: getFullnodeUrl("testnet"),

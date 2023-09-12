@@ -1,15 +1,8 @@
-import {
-  SuiTransactionBlockResponse,
-} from "@mysten/sui.js/client";
+import { SuiTransactionBlockResponse } from "@mysten/sui.js/client";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { getKeyPair } from "./helpers";
 
-import {
-  ADMIN_CAP,
-  ADMIN_PRIVATE_KEY,
-  CONFIG,
-  WHITELIST,
-} from "./constants";
+import { ADMIN_CAP, ADMIN_PRIVATE_KEY, CONFIG, WHITELIST } from "./constants";
 import { WhitelistData } from "./types";
 import { testnetClient, moduleFunctions } from "./setup";
 

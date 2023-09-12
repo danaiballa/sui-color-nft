@@ -8,7 +8,7 @@ import { testnetClient, moduleFunctions } from "./setup";
 import { getKeyPair } from "./helpers";
 import { USER_PRIVATE_KEY, WHITELIST } from "./constants";
 
-// TODO: giving the ke;air as input doesn't make much sense.
+// TODO: giving the kepair as input doesn't make much sense.
 // in reality the wallet should sign with a built-in function.
 async function userWhitelistClaim(
   userKeypair: Ed25519Keypair

@@ -1,4 +1,4 @@
-export type Color =
+export type GetColor =
   | "red"
   | "orange"
   | "yellow"
@@ -7,14 +7,15 @@ export type Color =
   | "indigo"
   | "violet";
 
-export type address = string;
+// TODO: restrict this type to have proper length and be hex
+export type Address = `0x${string}`;
 
 export type AirdropData = {
-  recipient: address;
-  getColor: Color;
+  recipient: Address;
+  getColor: GetColor;
 };
 
 export type WhitelistData = {
-  whitelistedAddress: address;
-  getColor: Color;
+  whitelistedAddress: Address;
+  getColor: GetColor;
 };
