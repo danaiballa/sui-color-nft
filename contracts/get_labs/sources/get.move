@@ -3,16 +3,17 @@ module get_labs::get{
   use std::string::{Self, String};
   use std::vector;
 
-  use sui::dynamic_field as df;
-  use sui::dynamic_object_field as dof;
   use sui::coin::{Self, Coin};
   use sui::clock::{Self, Clock};
   use sui::display;
+  use sui::dynamic_field as df;
+  use sui::dynamic_object_field as dof;
+  use sui::event;
   use sui::package;
   use sui::object::{Self, ID, UID};
+  use sui::sui::SUI;
   use sui::transfer;
   use sui::tx_context::{Self, TxContext};
-  use sui::sui::SUI;
 
   const PROFITS_ADDRESS: address = @0x10;
   const PRICE_MINT_SELECTED: u64 = 10_000_000;
@@ -74,7 +75,11 @@ module get_labs::get{
     get: Get,
   }
 
-  // TODO: event for ColorChanger, when a user puts a Get for upgrade
+  // Event emitted when a user puts a Get for upgrade in the ColorChanger object
+  struct GetPutForColorChange has copy, drop {
+    owner: address,
+    get_id: ID,
+  }
 
   // --- Events ---
   // TODO: add a ColorChange event
@@ -271,11 +276,14 @@ module get_labs::get{
   public fun user_put_for_color_change(get: Get, color_changer: &mut ColorChanger, ctx: &mut TxContext){
 
     let get_id = object::uid_to_inner(&get.id);
+    let owner = tx_context::sender(ctx);
 
     let wrapped_get = WrappedGet { 
-      owner: tx_context::sender(ctx),
+      owner,
       get,
     };
+
+    event::emit( GetPutForColorChange { owner, get_id } );
 
     df::add<ID, WrappedGet>(&mut color_changer.id, get_id, wrapped_get);
   }
