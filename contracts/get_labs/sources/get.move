@@ -3,6 +3,7 @@ module get_labs::get{
   use std::string::{Self, String};
   use std::vector;
 
+  use sui::address;
   use sui::coin::{Self, Coin};
   use sui::clock::{Self, Clock};
   use sui::display;
@@ -75,15 +76,13 @@ module get_labs::get{
     get: Get,
   }
 
+  // --- Events ---
+
   // Event emitted when a user puts a Get for upgrade in the ColorChanger object
   struct GetPutForColorChange has copy, drop {
     owner: address,
     get_id: ID,
   }
-
-  // --- Events ---
-  // TODO: add a ColorChange event
-
 
   fun init(otw: GET, ctx: &mut TxContext){
 
@@ -246,16 +245,14 @@ module get_labs::get{
     }
   }
 
-  // TODO: make this fast (not requiring Clock)
-  // Would be totally predictable though
-  public fun user_fast_mint_arbitrary(coin: Coin<SUI>, clock: &Clock, ctx: &mut TxContext): Get {
+  public fun user_fast_mint_arbitrary(coin: Coin<SUI>, ctx: &mut TxContext): Get {
 
     assert!(coin::value(&coin) == PRICE_MINT_ARBITRARY, EInvalidCoinValue);
 
     let available_colors = get_hardcoded_available_colors();
 
     let total_colors = vector::length(&available_colors);
-    let index = get_arbitrary_number_in_range(total_colors, clock);
+    let index = fast_get_arbitrary_number_in_range(total_colors, ctx);
     let color = *vector::borrow(&available_colors, index);
 
     transfer::public_transfer(coin, PROFITS_ADDRESS);
@@ -264,6 +261,7 @@ module get_labs::get{
       id: object::new(ctx),
       color,
     }
+    
 }
 
   public fun user_edit_color_with_ticket(get: &mut Get, edit_ticket: EditTicket) {
@@ -391,7 +389,18 @@ module get_labs::get{
   }
 
   // returns a number in range [0, n-1]
-  // TODO: make this less predictable
+  fun fast_get_arbitrary_number_in_range(n: u64, ctx: &mut TxContext): u64 {
+
+    let fresh_address = tx_context::fresh_object_address(ctx);
+
+    // convert fresh_address to u256
+    let fresh_u256 = address::to_u256(fresh_address);
+
+    let number = fresh_u256 % (n as u256);
+    (number as u64)
+  }
+
+  // returns a number in range [0, n-1]
   fun get_arbitrary_number_in_range(n: u64, clock: &Clock): u64{
     let current_timestamp = clock::timestamp_ms(clock);
     let number = current_timestamp % n;
