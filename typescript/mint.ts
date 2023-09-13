@@ -3,14 +3,14 @@ import { TransactionBlock } from "@mysten/sui.js/transactions";
 
 import { getKeyPair } from "./helpers";
 import { ADMIN_CAP, ADMIN_PRIVATE_KEY, CONFIG } from "./constants";
-import { GetColor, Address } from "./types";
+import { GetColor } from "./types";
 import { moduleFunctions, testnetClient } from "./setup";
 
 let adminKeypair = getKeyPair(ADMIN_PRIVATE_KEY);
 
 export async function adminMintAndTransferGet(
   color: GetColor,
-  recipient: Address
+  recipient: string
 ): Promise<SuiTransactionBlockResponse> {
   let txb = new TransactionBlock();
 

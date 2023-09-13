@@ -1,6 +1,5 @@
 import { fromB64 } from "@mysten/bcs";
 import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
-import { Address } from "./types";
 
 /// helper to make keypair from private key that is in string format
 export function getKeyPair(privateKey: string): Ed25519Keypair {
@@ -9,7 +8,7 @@ export function getKeyPair(privateKey: string): Ed25519Keypair {
   return Ed25519Keypair.fromSecretKey(Uint8Array.from(privateKeyArray));
 }
 
-export function formatAddress(suffix: string): Address {
+export function formatAddress(suffix: string): string {
   const addressLength = 64;
 
   let numberOfLeadingZeroes = addressLength - suffix.length;
@@ -18,5 +17,5 @@ export function formatAddress(suffix: string): Address {
     leadingZeroes += "0";
   }
 
-  return '0x' + leadingZeroes + suffix as Address;
+  return '0x' + leadingZeroes + suffix;
 }

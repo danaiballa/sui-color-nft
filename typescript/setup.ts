@@ -15,8 +15,9 @@ export const moduleTypes: {
   [key: string]: `${string}::${string}::${string}`;
 } = {
   get: `${PACKAGE_ID}::get::Get`,
-  colorChanger: `${PACKAGE_ID}::get::ColorChanger`
-}
+  transferPolicyCap: `0x2::transfer_policy::TransferPolicyCap<${PACKAGE_ID}::get::Get>`,
+  transferPolicy: `0x2::transfer_policy::TransferPolicy<${PACKAGE_ID}::get::Get>`,
+};
 
 export const testnetClient = new SuiClient({
   url: getFullnodeUrl("testnet"),

@@ -8,7 +8,7 @@ import {
   COLOR_CHANGER,
   CONFIG,
 } from "./constants";
-import { moduleFunctions, moduleTypes, testnetClient } from "./setup";
+import { moduleFunctions, testnetClient } from "./setup";
 import { GetColor } from "./types";
 
 const adminKeypair = getKeyPair(ADMIN_PRIVATE_KEY);
