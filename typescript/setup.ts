@@ -9,6 +9,8 @@ export const moduleFunctions: {
   userWhitelistClaim: `${PACKAGE_ID}::get::user_whitelist_claim`,
   userPutForColorChange: `${PACKAGE_ID}::get::user_put_for_color_change`,
   adminColorChange: `${PACKAGE_ID}::get::admin_color_change`,
+  updateWithSignature: `${PACKAGE_ID}::get::user_edit_color_with_signature`,
+  adminEditPublicKey: `${PACKAGE_ID}::get::admin_edit_public_key`,
 };
 
 export const moduleTypes: {

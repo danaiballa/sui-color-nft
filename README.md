@@ -24,7 +24,7 @@ There are three ways to mint a Get.
 
 ### `Get` Display
 
-(add an example on explorer for various colors)
+Example of a `Get`: https://suiexplorer.com/object/0xdf93e291a9f59ede70fce5d5a3e2319439cf467ce5f99710fcf2c31216bbf93e?network=testnet
 
 ### `Get` Editing
 There are three ways to edit a `Get`, and all three require consent from the Admin.

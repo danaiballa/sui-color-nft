@@ -4,11 +4,13 @@ module get_labs::get{
   use std::vector;
 
   use sui::address;
+  use sui::bcs;
   use sui::coin::{Self, Coin};
   use sui::clock::{Self, Clock};
   use sui::display;
   use sui::dynamic_field as df;
   use sui::dynamic_object_field as dof;
+  use sui::ed25519;
   use sui::event;
   use sui::package;
   use sui::object::{Self, ID, UID};
@@ -26,6 +28,8 @@ module get_labs::get{
   const EUserAlreadyWhitelisted: u64 = 3;
   const EUserNotWhitelisted: u64 = 4;
   const EGetIsNotPutForColorChange: u64 = 5;
+  const EInvalidSignature: u64 = 6;
+  const ESignatureExpired: u64 = 7;
 
   // OTW for display
   struct GET has drop {}
@@ -44,6 +48,7 @@ module get_labs::get{
   // will be a shared object
   struct Config has key, store {
     id: UID,
+    admin_public_key: vector<u8>,
     profits_address: address,
     available_colors: vector<String>,
     price_mint_selected: u64,
@@ -102,6 +107,8 @@ module get_labs::get{
 
     let config = Config {
       id: object::new(ctx),
+      // If we know the publc key, we could initialize it here
+      admin_public_key: vector::empty<u8>(),
       profits_address: PROFITS_ADDRESS,
       available_colors,
       price_mint_selected: PRICE_MINT_SELECTED,
@@ -184,6 +191,14 @@ module get_labs::get{
     config: &mut Config,
   ) {
     config.profits_address = new_profits_address;
+  }
+
+  public fun admin_edit_public_key(
+    _: &AdminCap,
+    new_public_key: vector<u8>,
+    config: &mut Config,
+  ) {
+    config.admin_public_key = new_public_key;
   }
 
   public fun admin_create_extra_admin_cap(
@@ -270,6 +285,36 @@ module get_labs::get{
     get.color = new_color;
     object::delete(id);
   }
+
+  public fun user_edit_color_with_signature(
+    get: &mut Get,
+    new_color: String,
+    expiration_timestamp: u64,
+    signed_message: vector<u8>,
+    config: &Config,
+    clock: &Clock,
+  ) {
+    // Make sure signature timestamp has not expired.
+    let current_timestamp = clock::timestamp_ms(clock);
+    assert!(current_timestamp <= expiration_timestamp, ESignatureExpired);
+
+
+    // Make sure the signature is valid.
+    assert!(
+      verify_update_signature(
+        object::uid_to_inner(&get.id),
+        new_color,
+        expiration_timestamp,
+        signed_message,
+        config
+      ), 
+      EInvalidSignature
+    );
+
+    // Finally, update Get color
+    get.color = new_color;
+  }
+
 
   public fun user_put_for_color_change(get: Get, color_changer: &mut ColorChanger, ctx: &mut TxContext){
 
@@ -405,6 +450,23 @@ module get_labs::get{
     let current_timestamp = clock::timestamp_ms(clock);
     let number = current_timestamp % n;
     number
+  }
+
+  fun verify_update_signature(
+    get_id: ID,
+    new_color: String,
+    expiration_timestamp: u64,
+    signed_message: vector<u8>,
+    config: &Config,
+  ): bool {
+    // Re-construct message that was signed.
+    let msg: vector<u8> = vector::empty();
+    vector::append(&mut msg, bcs::to_bytes<ID>(&get_id));
+    vector::append(&mut msg, bcs::to_bytes<String>(&new_color));
+    vector::append(&mut msg, bcs::to_bytes<u64>(&expiration_timestamp));
+      
+    // Return whether signature is valid or not.
+    ed25519::ed25519_verify(&signed_message, &config.admin_public_key, &msg)
   }
 
 
