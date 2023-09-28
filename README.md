@@ -1,6 +1,8 @@
 # sui-color-nft
 An Demo of an NFT on sui.
 
+[README is WIP]
+
 ## Project structure
 - `contracts/get_labs` contains the smart contract and its tests.
 - `scripts` contains an `.sh` script that can be used to publish the contract. The script saves automatically the addresses created in a `.env` file that can be used later to call the smart contracts.
